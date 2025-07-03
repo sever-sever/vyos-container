@@ -1,3 +1,4 @@
+
 name: Docker
 
 on:
@@ -54,7 +55,6 @@ jobs:
             ISO_URL=${{ env.ISO_URL }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
