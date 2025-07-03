@@ -98,7 +98,7 @@ jobs:
         run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
 
       - name: Delete old images
-        uses: snok/container-retention-policy@v3
+        uses: snok/container-retention-policy@v3.0.0
         with:
           image-names: ${{ env.REPOSITORY_NAME }}
           cut-off: 2w 3d
