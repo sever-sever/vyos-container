@@ -39,8 +39,60 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq curl
 
-      - name: Run build script
-        run: ./build.sh
+      # - name: Run build script
+      #   run: ./build.sh
+      name: Build and Push VyOS Container
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq curl
+
+      - name: Fetch latest ISO URL and export
+        id: iso
+        run: |
+          ISO_JSON_URL="https://raw.githubusercontent.com/vyos/vyos-nightly-build/refs/heads/current/version.json"
+          ISO_URL=$(curl -s "$ISO_JSON_URL" | jq -r '.[0].url')
+          echo "iso_url=$ISO_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          # build-args: |
+          #   VYOS_ISO_URL=${{ steps.iso.outputs.iso_url }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
