@@ -24,12 +24,17 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y jq curl
 
-      - name: Fetch latest ISO URL and export
-        id: iso
+      - name: Fetch latest VyOS ISO URL
+        id: fetch_iso
         run: |
           ISO_JSON_URL="https://raw.githubusercontent.com/vyos/vyos-nightly-build/refs/heads/current/version.json"
           ISO_URL=$(curl -s "$ISO_JSON_URL" | jq -r '.[0].url')
-          echo "iso_url=${ISO_URL}" >> "${GITHUB_OUTPUT}"
+          echo "Fetched ISO_URL: $ISO_URL"
+          if [[ -z "$ISO_URL" ]] || [[ "$ISO_URL" == "null" ]]; then
+            echo "Could not fetch a valid VyOS ISO URL." >&2
+            exit 1
+          fi
+          echo "ISO_URL=$ISO_URL" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,8 +50,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # build-args: |
-          #   VYOS_ISO_URL=${{ steps.iso.outputs.iso_url }}
+          build-args: |
+            ISO_URL=${{ env.ISO_URL }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
@@ -96,7 +101,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VYOS_ISO_URL=${{ steps.iso.outputs.iso_url }}
+            ISO_URL=${{ steps.iso.outputs.iso_url }}
 
       - name: Sign the published Docker image
         if: ${{ github.event_name != 'pull_request' }}
