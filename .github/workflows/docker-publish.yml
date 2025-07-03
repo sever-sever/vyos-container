@@ -131,4 +131,4 @@ jobs:
           cut-off: 2w 3d
           keep-at-least: 1
           account: user
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
