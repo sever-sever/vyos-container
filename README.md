@@ -29,4 +29,9 @@ docker build --build-arg VYOS_ISO_URL="$ISO_URL" -t vyos-container:latest .
 ```
 
 ## usage
+Example of usage:
+```
+docker run --rm -d --privileged -v /lib/modules:/lib/modules --name vyos-node1 vyos-container:latest /sbin/init
+docker exec -it vyos-node1 su - vyos
+```
 You can use images as containers for example for [containerlab-vyos](https://github.com/sever-sever/containerlab-vyos)
