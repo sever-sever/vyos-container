@@ -1,4 +1,6 @@
+###################
 # Stage 1: Builder
+###################
 FROM ubuntu:24.04 AS builder
 
 ARG VYOS_ISO_URL
@@ -30,9 +32,34 @@ RUN cd /build/unsquashfs && \
     # Remove unneeded systemd services cleanly
     rm -f etc/systemd/system/atopacct.service etc/systemd/system/hv-kvp-daemon.service
 
+#######################
 # Stage 2: Final image
+#######################
 FROM scratch
 
 COPY --from=builder /build/unsquashfs/ /
 
+# Create minimal entrypoint for hostname + /etc/hosts setup
+COPY <<'EOF' /entrypoint.sh
+#!/usr/bin/env bash
+set -e
+
+# Ensure /etc/hosts contains hostname for sudo and system tools
+HOSTNAME=$(hostname)
+if ! grep -q "$HOSTNAME" /etc/hosts; then
+    echo "127.0.0.1 $HOSTNAME" >> /etc/hosts
+fi
+
+# Mask systemd-hostnamed since it won't work in containers
+if [ -d /etc/systemd/system ]; then
+    ln -sf /dev/null /etc/systemd/system/systemd-hostnamed.service
+fi
+
+exec /sbin/init
+EOF
+
+RUN chmod +x /entrypoint.sh
+
+# Default command: start full VyOS init system
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/sbin/init"]
