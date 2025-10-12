@@ -21,6 +21,14 @@ RUN 7z x "$ISO_NAME" live/filesystem.squashfs -o/tmp && \
     unsquashfs -f -d /build/unsquashfs /tmp/live/filesystem.squashfs && \
     rm -rf /tmp/live /build/"$ISO_NAME"
 
+# Apply cleanups and tweaks in the extracted rootfs
+RUN cd /build/unsquashfs && \
+    # Set default locale
+    sed -i 's/^LANG=.*$/LANG=C.UTF-8/' etc/default/locale && \
+    # Remove unnecessary firmware, modules, and boot files
+    rm -rf boot/* lib/firmware lib/modules/* && \
+    # Remove unneeded systemd services cleanly
+    rm -f etc/systemd/system/atopacct.service etc/systemd/system/hv-kvp-daemon.service
 
 # Stage 2: Final image
 FROM scratch
