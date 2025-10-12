@@ -26,7 +26,7 @@ RUN cd /build/unsquashfs && \
     # Set default locale
     sed -i 's/^LANG=.*$/LANG=C.UTF-8/' etc/default/locale && \
     # Remove unnecessary firmware, modules, and boot files
-    rm -rf boot/* lib/firmware lib/modules/* && \
+    rm -rf boot/*.img boot/*vyos* boot/vmlinuz lib/firmware usr/lib/x86_64-linux-gnu/libwireshark.so* lib/modules/*amd64-vyos root/.gnupg && \
     # Remove unneeded systemd services cleanly
     rm -f etc/systemd/system/atopacct.service etc/systemd/system/hv-kvp-daemon.service
 
