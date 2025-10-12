@@ -1,4 +1,6 @@
+##################
 # Stage 1: Builder
+##################
 FROM ubuntu:24.04 AS builder
 
 ARG VYOS_ISO_URL
@@ -30,9 +32,27 @@ RUN cd /build/unsquashfs && \
     # Remove unneeded systemd services cleanly
     rm -f etc/systemd/system/atopacct.service etc/systemd/system/hv-kvp-daemon.service
 
+#######################
 # Stage 2: Final image
+#######################
 FROM scratch
 
 COPY --from=builder /build/unsquashfs/ /
+
+# Fix hostnamectl dependency for VyOS config scripts
+RUN mkdir -p /usr/local/bin && cat > /usr/local/bin/hostnamectl <<'EOF' && chmod +x /usr/local/bin/hostnamectl
+#!/usr/bin/env bash
+case "$1" in
+  --static)
+    cat /etc/hostname
+    ;;
+  set-hostname)
+    echo "$2" > /etc/hostname
+    ;;
+  *)
+    echo "   Static hostname: $(cat /etc/hostname 2>/dev/null || echo vyos)"
+    ;;
+esac
+EOF
 
 CMD ["/sbin/init"]
