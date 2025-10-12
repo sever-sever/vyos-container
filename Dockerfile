@@ -30,7 +30,7 @@ RUN cd /build/unsquashfs && \
     # Remove unnecessary firmware, modules, and boot files
     # rm -rf boot/*.img && \
     # rm -rf boot/*vyos* && \
-    rm -rfboot/vmlinuz && \
+    rm -rf boot/vmlinuz && \
     rm -rf lib/firmware && \
     rm -rf usr/lib/x86_64-linux-gnu/libwireshark.so* && \
     rm -rf lib/modules/*amd64-vyos root/.gnupg && \
