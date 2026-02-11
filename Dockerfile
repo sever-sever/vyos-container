@@ -11,45 +11,40 @@ RUN apt-get update && \
         curl \
         squashfs-tools \
         xz-utils \
-        p7zip-full && \
-    mkdir -p /build/rootfs /build/unsquashfs
+        p7zip-full \
+        jq && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
+# Download VyOS ISO
 RUN curl -L "$VYOS_ISO_URL" -o "$ISO_NAME"
 
-# Extract the filesystem.squashfs from the ISO using 7z
-RUN 7z x "$ISO_NAME" live/filesystem.squashfs -o/tmp && \
-    unsquashfs -f -d /build/unsquashfs /tmp/live/filesystem.squashfs && \
-    rm -rf /tmp/live /build/"$ISO_NAME"
+# Extract filesystem.squashfs in a layout-agnostic way
+RUN mkdir -p /tmp/iso && \
+    7z e "$ISO_NAME" filesystem.squashfs -r -o/tmp/iso && \
+    unsquashfs -f -d /build/rootfs /tmp/iso/filesystem.squashfs && \
+    rm -rf /tmp/iso "$ISO_NAME"
 
-# Apply cleanups and tweaks in the extracted rootfs
-RUN cd /build/unsquashfs && \
-    # Set default locale
+# Apply VyOS container tweaks
+RUN cd /build/rootfs && \
+    # Set locale
     sed -i 's/^LANG=.*$/LANG=C.UTF-8/' etc/default/locale && \
-    # Remove unnecessary firmware, modules, and boot files
-    # rm -rf boot/*.img && \
-    # rm -rf boot/*vyos* && \
-    # rm -rf boot/vmlinuz && \
-    rm -rf lib/firmware && \
-    rm -rf usr/lib/x86_64-linux-gnu/libwireshark.so* && \
-    rm -rf lib/modules/*amd64-vyos root/.gnupg && \
-    # Remove unneeded systemd services cleanly
-    rm -f etc/systemd/system/atopacct.service etc/systemd/system/hv-kvp-daemon.service
-
-#######################
-# Stage 2: Final image
-#######################
-FROM scratch
-
-COPY --from=builder /build/unsquashfs/ /
-
-# Fix hostnamectl dependency for VyOS config scripts
-RUN mkdir -p /usr/local/bin && cat > /usr/local/bin/hostnamectl <<'EOF' && chmod +x /usr/local/bin/hostnamectl
-#!/usr/bin/env bash
+    # Remove kernel / firmware (container does not boot its own kernel)
+    rm -rf boot/* lib/firmware lib/modules/* root/.gnupg && \
+    # VyOS expects /config symlink
+    ln -s /opt/vyatta/etc/config config && \
+    # Hard-disable unwanted systemd services
+    ln -sf /dev/null etc/systemd/system/atopacct.service && \
+    ln -sf /dev/null etc/systemd/system/hv-kvp-daemon.service && \
+    # Provide hostnamectl shim for VyOS scripts
+    mkdir -p usr/local/bin && \
+    cat > usr/local/bin/hostnamectl <<'EOF' && \
+    chmod +x usr/local/bin/hostnamectl
+#!/usr/bin/env sh
 case "$1" in
   --static)
-    cat /etc/hostname
+    cat /etc/hostname 2>/dev/null || echo vyos
     ;;
   set-hostname)
     echo "$2" > /etc/hostname
@@ -59,5 +54,12 @@ case "$1" in
     ;;
 esac
 EOF
+
+#######################
+# Stage 2: Final image
+#######################
+FROM scratch
+
+COPY --from=builder /build/rootfs/ /
 
 CMD ["/sbin/init"]
